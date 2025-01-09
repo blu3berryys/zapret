@@ -1,168 +1,166 @@
-### tpws
+## tpws
 
-Using `WSL` (Windows subsystem for Linux) it's possible to run `tpws` in socks mode under rather new builds of
-windows 10 and windows server.
-Its not required to install any linux distributions as suggested in most articles.
-tpws is static binary. It doesn't need a distribution.
+`tpws` is a static binary that allows you to run in **SOCKS mode** using **WSL** (Windows Subsystem for Linux) on newer builds of Windows 10 and Windows Server. It's not necessary to install a Linux distribution as suggested in most articles. You only need to install `WSL`.
 
-Install `WSL` : `dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all`
+### Installation Steps
 
-Copy `binaries/x86_64/tpws_wsl.tgz` to the target system.
-Run : `wsl --import tpws "%USERPROFILE%\tpws" tpws_wsl.tgz`
+1. **Install WSL**:  
+   Run the following command in **Administrator** mode to enable WSL:
+   ```bash
+   dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all
+   ```
 
-Run tpws : `wsl -d tpws --exec /tpws --uid=1 --no-resolve --socks --bind-addr=127.0.0.1 --port=1080 <fooling_options>`
+2. **Copy Binary**:  
+   Copy the `binaries/x86_64/tpws_wsl.tgz` file to the target system.
 
-Configure socks as `127.0.0.1:1080` in a browser or another program.
+3. **Import tpws into WSL**:  
+   Use the following command to import `tpws`:
+   ```bash
+   wsl --import tpws "%USERPROFILE%\tpws" tpws_wsl.tgz
+   ```
 
-Cleanup : `wsl --unregister tpws`
+4. **Run tpws**:  
+   Execute `tpws` in WSL with the following command:
+   ```bash
+   wsl -d tpws --exec /tpws --uid=1 --no-resolve --socks --bind-addr=127.0.0.1 --port=1080 <fooling_options>
+   ```
 
-Tested in windows 10 build 19041 (20.04).
+5. **Configure SOCKS Proxy**:  
+   Set your SOCKS proxy in your browser or any other program to `127.0.0.1:1080`.
 
-`--oob` , `--mss` and `--disorder` do not work.
-RST detection in autohostlist scheme may not work.
-WSL may glitch with splice. `--nosplice` may be required.
+6. **Cleanup**:  
+   After you're done, clean up by unregistering `tpws`:
+   ```bash
+   wsl --unregister tpws
+   ```
 
+**Tested on**: Windows 10 Build 19041 (20.04)
 
-### winws
+### Known Issues
 
-`winws` is `nfqws` version for windows. It's based on `windivert`. Most functions are working.
-Large ip filters (ipsets) are not possible. Forwarded traffic and connection sharing are not supported.
-Administrator rights are required.
+- `--oob`, `--mss`, and `--disorder` do not work.
+- RST detection in the autohostlist scheme may not work.
+- WSL may glitch with `splice`. You may need to use `--nosplice`.
 
-Working with packet filter consists of two parts
+---
 
-1. In-kernel packet selection and passing selected packets to a packet filter in user mode.
-In *nix it's done by `iptables`, `nftables`, `pf`, `ipfw`.
-2. User mode packet filter processes packets and does DPI bypass magic.
+## winws
 
-Windows does not have part 1. No `iptables` exist. That's why 3rd party packet redirector is used.
-It's called `windivert`. It works starting from `windows 7`. Kernel driver is signed but it may require to disable secure boot
-or update windows 7. Read below for windows 7 windivert signing info.
+`winws` is the **Windows version** of `nfqws`, based on **windivert**. Most features are fully functional, but **large IP filters (ipsets)** and **connection sharing** are not supported. **Administrator rights** are required.
 
-Task of `iptables` is done inside `winws` through `windivert` filters. `Windivert` has it's own [filter language](https://reqrypt.org/windivert-doc.html#filter_language).
-`winws` can automate filter construction using simple ip version and port filter. Raw filters are also supported.
+### Overview of Packet Filter Operation
 
+Windows lacks a built-in packet selection tool like Linux's `iptables`, `nftables`, `pf`, or `ipfw`. Instead, it uses the **Windivert** library, a packet redirector that works starting from Windows 7.
+
+`winws` automates filter construction using simple filters based on **IP version** and **port**. Raw filters are also supported.
+
+### Common Parameters for `winws`
+
+- `--wf-iface=<int>[:<int>]`: Network interface and subinterface indexes (numeric).
+- `--wf-l3=ipv4|ipv6`: Layer 3 protocol filter. Multiple comma-separated values allowed.
+- `--wf-tcp=[~]port1[-port2]`: TCP port filter. Use `~` for negation.
+- `--wf-udp=[~]port1[-port2]`: UDP port filter. Use `~` for negation.
+- `--wf-raw=<filter>|@<filename>`: Raw Windivert filter string or filename.
+- `--wf-save=<filename>`: Save Windivert filter string to a file and exit.
+- `--ssid-filter=ssid1[,ssid2,ssid3,...]`: Enable `winws` if any of the specified WiFi SSIDs are connected.
+- `--nlm-filter=net1[,net2,net3,...]`: Enable `winws` if any of the specified NLM networks are connected.
+- `--nlm-list[=all]`: List NLM networks (either all or connected).
+
+### Discovering Interface Indexes
+
+Use this command to find the interface index:
+```bash
+netsh int ip show int
 ```
- --wf-iface=<int>[:<int>]                       ; numeric network interface and subinterface indexes
- --wf-l3=ipv4|ipv6                              ; L3 protocol filter. multiple comma separated values allowed.
- --wf-tcp=[~]port1[-port2]                      ; TCP port filter. ~ means negation. multiple comma separated values allowed.
- --wf-udp=[~]port1[-port2]                      ; UDP port filter. ~ means negation. multiple comma separated values allowed.
- --wf-raw=<filter>|@<filename>                  ; raw windivert filter string or filename
- --wf-save=<filename>                           ; save windivert filter string to a file and exit
- --ssid-filter=ssid1[,ssid2,ssid3,...]          ; enable winws only if any of specified wifi SSIDs connected
- --nlm-filter=net1[,net2,net3,...]              ; enable winws only if any of specified NLM network is connected. names and GUIDs are accepted.
- --nlm-list[=all]                               ; list Network List Manager (NLM) networks. connected only or all.                           
-```
+Alternatively, run `winws --debug` to find the interface index there. The subinterface index is typically `0`.
 
-`--wf-l3`, `--wf-tcp`, `--wf-udp` can take multiple comma separated arguments.
+### Multiple Instances
 
-Interface indexes can be discovered using this command : `netsh int ip show int`
+Multiple `winws` instances can run, but **filter overlap is discouraged**. You can enable `winws` only when specific networks are connected by using the `--ssid-filter` or `--nlm-filter` options.
 
-If you can't find index this way use `winws --debug` to see index there. Subinterface index is almost always 0 and you can omit it.
+### Troubleshooting
 
-Multiple `winws` processes are allowed. However, it's discouraged to intersect their filters.
+- **Cygwin Issues**: `Cygwin` shell will not run binaries if its directory contains `cygwin1.dll`. If you encounter this, delete or rename `cygwin1.dll` in the `cygwin` directory.
+- **Windows 7 Support**: `winws` is compatible with Windows 7 if `windivert` is properly signed. Follow the instructions below for `Windows 7 Windivert Signing`.
 
-`--ssid-filter` allows to enable `winws` only if specified wifi networks are connected. `winws` auto detects SSID appearance and disappearance.
-SSID names must be written in the same case as the system sees them. This option does not analyze routing and does not detect where traffic actually goes.
-If multiple connections are available, the only thing that triggers `winws` operation is wifi connection presence. That's why it's a good idea to add also `--wf-iface` filter to not break ethernet, for example.
+---
 
-`--nlm-filter` is like `--ssid-filter` but works with names or GUIDs from Network List Manager. NLM names are those you see in Control Panel "Network and Sharing Center".
-NLM networks are adapter independent. Usually MAC address of the default router is used to distinugish networks. NLM works with any type of adapters : ethernet, wifi, vpn and others.
-That's why NLM is more universal than `ssid-filter`.
+## Windows 7 Windivert Signing
 
-`Cygwin` shell does not run binaries if their directory has it's own copy of `cygwin1.dll`.
-If you want to run `winws` from `cygwin` delete, rename or move `cygwin1.dll`.
-`Cygwin` is required for `blockcheck.sh` support but `winws` itself can be run standalone without cygwin.
+To use `windivert` on **Windows 7**, the driver must be signed. Since official updates stopped in 2020, you need to use one of the following methods:
 
-How to get `windows 7` and `winws` compatible `cygwin` :
-```
-curl -O https://www.cygwin.com/setup-x86_64.exe
-setup-x86_64.exe --allow-unsupported-windows --no-verify --site http://ctm.crouchingtigerhiddenfruitbat.org/pub/cygwin/circa/64bit/2024/01/30/231215
-```
-You must choose to install `curl`. To compile from sources install `gcc-core`,`make`,`zlib-devel`.
-Make from directory `nfq` using `make cygwin64` or `make cygwin32` for 64 and 32 bit versions.
+1. **Using `windivert64.sys` and `windivert.dll` version `2.2.0-C` or `2.2.0-D`**:
+   - Download from [here](https://reqrypt.org/download).
+   - Replace these files in the appropriate directories (e.g., `zapret-win-bundle/zapret-winws`).
+   - **Note**: This requires a 10+ year old patch for SHA256 signatures.
 
-`winws` requires `cygwin1.dll`, `windivert.dll`, `windivert64.sys` or `windivert32.sys`.
-You can take them from `binaries/win64` or `binaries/win32`.
+2. **Hack ESU**:  
+   Instructions can be found [here](https://hackandpwn.com/windows-7-esu-patching).
 
-There's no `arm64` signed `windivert` driver and no `cygwin`.
-But it's possible to use unsigned driver version in test mode and user mode components with x64 emulation.
-x64 emulation requires `windows 11` and not supported in `windows 10`.
+3. **Update Pack for Windows 7**:  
+   Use `UpdatePack7R2` from [Simplix](https://blog.simplix.info).
 
-### windows 7 windivert signing
+---
 
-Requirements for windows driver signing have changed in 2021.
-Official free updates of windows 7 ended in 2020.
-After 2020 for the years paid updates were available (ESU).
-One of the updates from ESU enables signatures used in windivert 2.2.2-A.
-There are several options :
+## blockcheck
 
-1. Take `windivert64.sys` and `windivert.dll` version `2.2.0-C` or `2.2.0-D` from [here](https://reqrypt.org/download).
-Replace these 2 files in every location they are present.
-In `zapret-win-bundle` they are in `zapret-winws` и `blockcheck/zapret/nfq` folders.
-However this option still requires 10+ year old patch that enables SHA256 signatures.
-If you're using win bundle you can simply run `win7\install_win7.cmd`
+`blockcheck.sh` is written in POSIX shell and requires certain utilities that are not available in Windows by default. To run it, you must use **Cygwin**.
 
-3. [Hack ESU](https://hackandpwn.com/windows-7-esu-patching)
+### How to Run `blockcheck.sh`:
 
-4. Use `UpdatePack7R2` from simplix : https://blog.simplix.info
-If you are in Russia or Belarus temporary change region in Control Panel.
+1. **Install Cygwin**:
+   - Download the Cygwin installer from [here](https://www.cygwin.com/setup-x86_64.exe).
+   - Install **curl**, `gcc-core`, `make`, and `zlib-devel` for compiling from source.
 
-### blockcheck
+2. **Run Scripts**:
+   - First, run `install_bin.sh`, then run `blockcheck.sh`.
+   - Use Cygwin paths for Windows directories (e.g., `C:/Users/vasya`).
 
-`blockcheck.sh` is written in posix shell and uses some standard posix utilites.
-Windows does not have them. To execute `blockcheck.sh` use `cygwin` command prompt run as administrator.
-It's not possible to use `WSL`. It's not the same as `cygwin`.
-First run once `install_bin.sh` then `blockcheck.sh`.
+3. **Run as Administrator**:
+   - `Cygwin` needs to be run as administrator to execute `blockcheck.sh`.
 
-Backslashes in windows paths shoud be doubled. Or use cygwin path notation.
-```
-cd "C:\\Users\\vasya"
-cd "C:/Users/vasya"
-cd "/cygdrive/c/Users/vasya"
-```
-`Cygwin` shell does not run binaries if their directory has it's own copy of `cygwin1.dll`.
-If you want to run `winws` from `cygwin` delete, rename or move `cygwin1.dll`.
+**Note**: If you're using `cygwin1.dll` in the Cygwin directory, it might prevent `winws` from running. Rename or delete the conflicting `cygwin1.dll`.
 
-`Cygwin` is required only for `blockcheck.sh`. Standalone `winws` can be run without it.
+---
 
-To simplify things it's advised to use `zapret-win-bundle`.
+## Auto Start
 
-### auto start
+To automatically start `winws` with Windows, you can use the **Windows Task Scheduler**. The following batch files in `binaries/win64/zapret-winws` help you manage scheduled tasks:
 
-To start `winws` with windows use windows task scheduler. There are `task_*.cmd` batch files in `binaries/win64/zapret-winws`.
-They create, remove, start and stop scheduled task `winws1`. They must be run as administrator.
+- `task_create.cmd`: Creates the scheduled task `winws1`.
+- `task_remove.cmd`: Removes the scheduled task `winws1`.
+- `task_start.cmd`: Starts the scheduled task `winws1`.
+- `task_stop.cmd`: Stops the scheduled task `winws1`.
 
-Edit `task_create.cmd` and write your `winws` parameters to `%WINWS1%` variable. If you need multiple `winws` instances
-clone the code in all cmd files to support multiple tasks `winws1,winws2,winws3,...`.
+These files must be run with administrator privileges. You can also use **Windows Services** with the `service_*.cmd` files.
 
-Tasks can also be controlled from GUI `taskschd.msc`.
+---
 
-Also you can use windows services the same way with `service_*.cmd`.
+## zapret-win-bundle
 
+The **zapret-win-bundle** is a pre-configured bundle that includes `cygwin`, `blockcheck`, and `winws`. This makes setup and usage easier.
 
-### zapret-win-bundle
+### Bundle Contents:
 
-To make your life easier there's ready to use [bundle](https://github.com/bol-van/zapret-win-bundle) with `cygwin`,`blockcheck` and `winws`.
+- `/zapret-winws`: Standalone version of `winws` for everyday use.
+- `/zapret-winws/_CMD_ADMIN.cmd`: Opens a command prompt as administrator.
+- `/blockcheck/blockcheck.cmd`: Runs `blockcheck` with logging.
+- `/cygwin/cygwin.cmd`: Runs Cygwin shell as the current user.
+- `/cygwin/cygwin-admin.cmd`: Runs Cygwin shell as administrator.
 
-* `/zapret-winws` - standalone version of `winws` for everyday use. does not require any other folders.
-* `/zapret-winws/_CMD_ADMIN.cmd` - open `cmd` as administrator in the current folder
-* `/blockcheck/blockcheck.cmd` - run `blockcheck` with logging to `blockcheck/blockcheck.log`
-* `/cygwin/cygwin.cmd` - run `cygwin` shell as current user
-* `/cygwin/cygwin-admin.cmd` - run `cygwin` shell as administrator
+The bundle also includes aliases for commonly used commands like `winws`, `blockcheck`, `ip2net`, and `mdig`.
 
-There're aliases in cygwin shell for `winws`,`blockcheck`,`ip2net`,`mdig`. No need to mess with paths.
-It's possible to send signals to `winws` using standard unix utilites : `pidof,kill,killall,pgrep,pkill`.
-`Cygwin` shares common process list per `cygwin1.dll` copy. If you run a `winws` from `zapret-winws`
-you won't be able to `kill` it because this folder contain its own copy of `cygwin1.dll`.
+### Debugging `winws`
 
-It's possible to use `cygwin` shell to make `winws` debug log. Use `tee` command like this :
-
-```
+To enable `winws` debug logging, use:
+```bash
 winws --debug --wf-tcp=80,443 | tee winws.log
 unix2dos winws.log
 ```
+This will create a log file `winws.log` in your Cygwin home directory. Use `unix2dos` to convert it for Windows 7 compatibility (not needed on Windows 10+).
 
-`winws.log` will be in `cygwin/home/<username>`. `unix2dos` helps with `windows 7` notepad. It's not necessary in `Windows 10` and later.
+---
 
-Because 32-bit systems are rare nowadays `zapret-win-bundle` exists only for `Windows x64/arm64`.
+## Conclusion
+
+This bundle and the `winws` tool can greatly enhance your experience when using packet filtering on Windows, especially if you require advanced bypass capabilities. For a smoother experience, always refer to the provided configuration scripts and utilities.
